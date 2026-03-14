@@ -1,16 +1,85 @@
-# React + Vite
+# Bravia Hôtel — Frontend (Next.js + Ant Design)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface publique et administration pour la gestion des salles.
 
-Currently, two official plugins are available:
+## Prérequis
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js ≥ 18
+- Backend NestJS démarré sur le port 3001
 
-## React Compiler
+## Installation
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+```
 
-## Expanding the ESLint configuration
+## Configuration
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Créer un fichier `.env.local` à la racine du dossier `frontend/` :
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
+```
+
+## Démarrage
+
+```bash
+# Développement
+npm run dev
+```
+
+L'application est accessible sur `http://localhost:3000`.
+
+## Build production
+
+```bash
+npm run build
+npm run start
+```
+
+## Pages
+
+| URL                      | Accès   | Description                                      |
+|--------------------------|---------|--------------------------------------------------|
+| `/`                      | Public  | Calendrier des réservations (jour/semaine/mois)  |
+| `/admin/connexion`       | Public  | Page de connexion admin                          |
+| `/admin/reservations`    | Admin   | Gestion des réservations                         |
+| `/admin/salles`          | Admin   | Gestion des salles                               |
+| `/admin/etages`          | Admin   | Gestion des étages                               |
+| `/admin/entreprises`     | Admin   | Gestion des entreprises                          |
+| `/admin/utilisateurs`    | SUPER_ADMIN | Gestion des utilisateurs                     |
+
+**Compte par défaut** (créé automatiquement par le backend) :
+- Email : `admin@bravia.com`
+- Mot de passe : `Admin1234!`
+
+## Thème / Couleurs
+
+Toutes les couleurs sont centralisées dans :
+
+```
+src/theme/theme.config.ts
+```
+
+Modifier `COULEURS.primaire` pour changer la couleur principale dans toute l'application.
+
+## Architecture
+
+```
+src/
+├── app/
+│   ├── page.tsx              # Page publique (calendrier)
+│   ├── admin/
+│   │   ├── layout.tsx        # Sidebar admin + protection JWT
+│   │   ├── connexion/        # Login
+│   │   ├── reservations/     # CRUD réservations
+│   │   ├── salles/           # CRUD salles
+│   │   ├── etages/           # CRUD étages
+│   │   ├── entreprises/      # CRUD entreprises
+│   │   └── utilisateurs/     # CRUD utilisateurs (SUPER_ADMIN)
+├── lib/
+│   ├── api.ts                # Client Axios + toutes les fonctions API
+│   └── auth.ts               # Helpers JWT (lecture, déconnexion)
+└── theme/
+    └── theme.config.ts       # Couleurs centralisées + thème Ant Design
+```

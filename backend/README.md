@@ -36,13 +36,13 @@ cp .env.example .env
 
 ```bash
 # Développement (redémarrage automatique)
-npm run dev
+npm run start:dev
 
 # Production
 npm run start
 
 # Debug (avec inspecteur Node)
-npm run debug
+npm run start:debug
 ```
 
 L'API est accessible sur `http://localhost:3001/api`.

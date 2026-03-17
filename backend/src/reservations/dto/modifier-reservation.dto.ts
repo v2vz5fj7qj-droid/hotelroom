@@ -1,28 +1,34 @@
 import { IsDateString, IsInt, IsBoolean, IsOptional, IsEnum, ValidateIf, Matches } from 'class-validator';
 import { StatutReservation } from '../statut-reservation.enum';
 
-export class CreerReservationDto {
+export class ModifierReservationDto {
+  @IsOptional()
   @IsInt()
-  salleId: number;
+  salleId?: number;
 
+  @IsOptional()
   @IsInt()
-  entrepriseId: number;
+  entrepriseId?: number;
 
+  @IsOptional()
   @IsDateString({}, { message: 'La date doit être au format YYYY-MM-DD' })
-  date: string;
+  date?: string;
 
+  @IsOptional()
   @IsBoolean()
-  estJourneeEntiere: boolean;
+  estJourneeEntiere?: boolean;
 
-  @ValidateIf((o) => !o.estJourneeEntiere)
+  @ValidateIf((o) => o.estJourneeEntiere === false)
+  @IsOptional()
   @Matches(/^([0-1]\d|2[0-3]):(00|30)$/, {
-    message: 'L\'heure doit être un créneau de 30 min (ex: 09:00, 14:30)',
+    message: "L'heure doit être un créneau de 30 min (ex: 09:00, 14:30)",
   })
   heureDebut?: string;
 
-  @ValidateIf((o) => !o.estJourneeEntiere)
+  @ValidateIf((o) => o.estJourneeEntiere === false)
+  @IsOptional()
   @Matches(/^([0-1]\d|2[0-3]):(00|30)$/, {
-    message: 'L\'heure de fin doit être un créneau de 30 min (ex: 09:30, 15:00)',
+    message: "L'heure de fin doit être un créneau de 30 min (ex: 09:30, 15:00)",
   })
   heureFin?: string;
 

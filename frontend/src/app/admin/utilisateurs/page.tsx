@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Table, Button, Modal, Form, Input, Select, Space, Popconfirm, message, Typography, Row, Col, Tag } from 'antd';
+import { App, Card, Table, Button, Modal, Form, Input, Select, Space, Popconfirm, Typography, Row, Col, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined, TeamOutlined } from '@ant-design/icons';
 import { obtenirUtilisateurs, creerUtilisateur, supprimerUtilisateur } from '@/lib/api';
 import { COULEURS } from '@/theme/theme.config';
@@ -12,7 +12,8 @@ const LIBELLES_ROLE: Record<string, { label: string; color: string }> = {
   VIEWER: { label: 'Lecteur', color: 'blue' },
 };
 
-export default function PageUtilisateurs() {
+function PageUtilisateursInner() {
+  const { message } = App.useApp();
   const [utilisateurs, setUtilisateurs] = useState<any[]>([]);
   const [chargement, setChargement] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -114,4 +115,8 @@ export default function PageUtilisateurs() {
       </Modal>
     </Card>
   );
+}
+
+export default function PageUtilisateurs() {
+  return <App><PageUtilisateursInner /></App>;
 }

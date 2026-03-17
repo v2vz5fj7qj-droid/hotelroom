@@ -9,8 +9,9 @@ import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isBetween from 'dayjs/plugin/isBetween';
-import { obtenirReservations } from '@/lib/api';
+import { obtenirReservations, obtenirSalles } from '@/lib/api';
 import { COULEURS } from '@/theme/theme.config';
+import { estConnecte } from '@/lib/auth';
 import Link from 'next/link';
 
 dayjs.extend(weekOfYear);
@@ -50,9 +51,19 @@ const couleurEntreprise = (id: number) => PALETTE[id % PALETTE.length];
 
 export default function PagePublique() {
   const [vue, setVue] = useState<VueType>('semaine');
+  const [connecte, setConnecte] = useState(false);
+
+  useEffect(() => {
+    setConnecte(estConnecte());
+  }, []);
   const [dateBase, setDateBase] = useState<Dayjs>(dayjs());
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [totalSalles, setTotalSalles] = useState(0);
   const [chargement, setChargement] = useState(true);
+
+  useEffect(() => {
+    obtenirSalles().then(({ data }) => setTotalSalles(data.length)).catch(() => {});
+  }, []);
 
   const chargerReservations = useCallback(async () => {
     try {
@@ -122,11 +133,18 @@ export default function PagePublique() {
           </Title>
           <Text type="secondary">Mise à jour automatique toutes les 60 secondes</Text>
         </div>
-        <Link href="/admin/connexion">
-          <Button type="default" style={{ borderColor: COULEURS.primaire, color: COULEURS.primaire }}>
-            Accès Admin
-          </Button>
-        </Link>
+        <Space>
+          <Link href="/affichage" target="_blank">
+            <Button type="default" style={{ borderColor: COULEURS.accent ?? '#fbbf24', color: COULEURS.accent ?? '#fbbf24' }}>
+              Affichage écran
+            </Button>
+          </Link>
+          <Link href={connecte ? '/admin/reservations' : '/admin/connexion'}>
+            <Button type="default" style={{ borderColor: COULEURS.primaire, color: COULEURS.primaire }}>
+              {connecte ? 'Espace Admin' : 'Accès Admin'}
+            </Button>
+          </Link>
+        </Space>
       </div>
 
       {/* Contrôles */}
@@ -164,7 +182,7 @@ export default function PagePublique() {
         </div>
       ) : (
         <Row gutter={[16, 16]}>
-          {joursVisibles.map((jour) => {
+          {(connecte ? joursVisibles : joursVisibles.filter((j) => !j.isBefore(dayjs(), 'day'))).map((jour) => {
             const resJour = reservParDate(jour);
             const estAujourdhui = jour.isSame(dayjs(), 'day');
             return (
@@ -192,9 +210,15 @@ export default function PagePublique() {
                   }}
                 >
                   {resJour.length === 0 ? (
-                    <Text type="secondary" style={{ fontSize: 12 }}>Aucune réservation</Text>
-                  ) : (
-                    <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        display: 'inline-block', width: 10, height: 10,
+                        borderRadius: '50%', background: '#52c41a', flexShrink: 0,
+                      }} />
+                      <Text type="secondary" style={{ fontSize: 12 }}>Toutes les salles disponibles</Text>
+                    </div>
+                  ) : connecte ? (
+                    <Space orientation="vertical" style={{ width: '100%' }} size={8}>
                       {resJour
                         .sort((a, b) => {
                           if (a.estJourneeEntiere) return -1;
@@ -228,6 +252,25 @@ export default function PagePublique() {
                           </div>
                         ))}
                     </Space>
+                  ) : (
+                    /* Vue anonyme : disponibilité globale uniquement */
+                    (() => {
+                      const sallesReservees = new Set(resJour.map((r) => r.salle.id)).size;
+                      const disponibles = Math.max(0, totalSalles - sallesReservees);
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            display: 'inline-block', width: 10, height: 10,
+                            borderRadius: '50%',
+                            background: disponibles > 0 ? '#52c41a' : COULEURS.primaire,
+                            flexShrink: 0,
+                          }} />
+                          <Text style={{ fontSize: 12 }}>
+                            {disponibles} salle{disponibles > 1 ? 's' : ''} disponible{disponibles > 1 ? 's' : ''}
+                          </Text>
+                        </div>
+                      );
+                    })()
                   )}
                 </Card>
               </Col>

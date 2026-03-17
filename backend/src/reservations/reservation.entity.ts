@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, Jo
 import { Salle } from '../salles/salle.entity';
 import { Entreprise } from '../entreprises/entreprise.entity';
 import { Utilisateur } from '../utilisateurs/utilisateur.entity';
+import { StatutReservation } from './statut-reservation.enum';
 
 @Entity('reservations')
 export class Reservation {
@@ -36,6 +37,9 @@ export class Reservation {
 
   @Column({ nullable: true })
   notes: string;
+
+  @Column({ type: 'enum', enum: StatutReservation, default: StatutReservation.EN_ATTENTE })
+  statut: StatutReservation;
 
   @ManyToOne(() => Utilisateur, { eager: false, nullable: true })
   @JoinColumn({ name: 'creePar' })

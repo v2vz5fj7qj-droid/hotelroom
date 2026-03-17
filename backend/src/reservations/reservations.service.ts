@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { Reservation } from './reservation.entity';
 import { CreerReservationDto } from './dto/creer-reservation.dto';
+import { ModifierReservationDto } from './dto/modifier-reservation.dto';
 
 @Injectable()
 export class ReservationsService {
@@ -14,35 +15,30 @@ export class ReservationsService {
   private async verifierConflit(dto: CreerReservationDto, excludeId?: number): Promise<void> {
     const reservationsExistantes = await this.repo.find({
       where: { salleId: dto.salleId, date: dto.date },
+      relations: ['entreprise'],
     });
 
     const candidats = reservationsExistantes.filter((r) => r.id !== excludeId);
 
     for (const existante of candidats) {
-      // Journée entière existante bloque tout
+      const nomEntreprise = existante.entreprise?.nom ?? 'une autre entreprise';
+
       if (existante.estJourneeEntiere) {
         throw new ConflictException(
-          `La salle est déjà réservée pour la journée entière par ${existante.entreprise.nom}`,
+          `La salle est déjà réservée pour la journée entière par ${nomEntreprise}`,
         );
       }
 
-      // Nouvelle réservation journée entière bloque si quelque chose existe
       if (dto.estJourneeEntiere) {
         throw new ConflictException(
           `La salle a déjà des réservations ce jour-là (${existante.heureDebut}–${existante.heureFin})`,
         );
       }
 
-      // Chevauchement de créneaux: début < fin_existante ET fin > début_existant
       if (dto.heureDebut && dto.heureFin && existante.heureDebut && existante.heureFin) {
-        const debutNouveau = dto.heureDebut;
-        const finNouveau = dto.heureFin;
-        const debutExistant = existante.heureDebut;
-        const finExistante = existante.heureFin;
-
-        if (debutNouveau < finExistante && finNouveau > debutExistant) {
+        if (dto.heureDebut < existante.heureFin && dto.heureFin > existante.heureDebut) {
           throw new ConflictException(
-            `Conflit: la salle est déjà réservée de ${debutExistant} à ${finExistante} par ${existante.entreprise.nom}`,
+            `Conflit : la salle est déjà réservée de ${existante.heureDebut} à ${existante.heureFin} par ${nomEntreprise}`,
           );
         }
       }
@@ -81,6 +77,46 @@ export class ReservationsService {
     const r = await this.repo.findOne({ where: { id } });
     if (!r) throw new NotFoundException('Réservation introuvable');
     return r;
+  }
+
+  async modifier(id: number, dto: ModifierReservationDto): Promise<Reservation> {
+    const reservation = await this.trouverParId(id);
+
+    const salleId       = dto.salleId       ?? reservation.salleId;
+    const entrepriseId  = dto.entrepriseId  ?? reservation.entrepriseId;
+    const date          = dto.date          ?? reservation.date;
+    const estJourneeEntiere = dto.estJourneeEntiere ?? reservation.estJourneeEntiere;
+    const heureDebut    = estJourneeEntiere ? null : (dto.heureDebut ?? reservation.heureDebut);
+    const heureFin      = estJourneeEntiere ? null : (dto.heureFin  ?? reservation.heureFin);
+    const notes         = dto.notes  !== undefined ? dto.notes  : reservation.notes;
+    const statut        = dto.statut !== undefined ? dto.statut : reservation.statut;
+
+    if (!estJourneeEntiere) {
+      if (!heureDebut || !heureFin) {
+        throw new BadRequestException('heureDebut et heureFin sont requis pour un créneau');
+      }
+      if (heureDebut >= heureFin) {
+        throw new BadRequestException("L'heure de début doit être avant l'heure de fin");
+      }
+    }
+
+    await this.verifierConflit(
+      { salleId, entrepriseId, date, estJourneeEntiere, heureDebut, heureFin } as CreerReservationDto,
+      id,
+    );
+
+    await this.repo.update(id, {
+      salleId,
+      entrepriseId,
+      date,
+      estJourneeEntiere,
+      heureDebut,
+      heureFin,
+      notes,
+      statut,
+    });
+
+    return this.trouverParId(id);
   }
 
   async supprimer(id: number): Promise<void> {

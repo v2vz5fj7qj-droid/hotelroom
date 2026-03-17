@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Table, Button, Modal, Form, Input, Space, Popconfirm, message, Typography, Row, Col } from 'antd';
+import { App, Card, Table, Button, Modal, Form, Input, Space, Popconfirm, Typography, Row, Col } from 'antd';
 import { PlusOutlined, DeleteOutlined, BankOutlined } from '@ant-design/icons';
 import { obtenirEntreprises, creerEntreprise, supprimerEntreprise } from '@/lib/api';
 import { obtenirUtilisateurConnecte } from '@/lib/auth';
 import { COULEURS } from '@/theme/theme.config';
 
-export default function PageEntreprises() {
+function PageEntreprisesInner() {
+  const { message } = App.useApp();
   const [entreprises, setEntreprises] = useState<any[]>([]);
   const [chargement, setChargement] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -86,4 +87,8 @@ export default function PageEntreprises() {
       </Modal>
     </Card>
   );
+}
+
+export default function PageEntreprises() {
+  return <App><PageEntreprisesInner /></App>;
 }

@@ -10,6 +10,9 @@ import {
   UserOutlined,
   LogoutOutlined,
   BuildOutlined,
+  BarChartOutlined,
+  DesktopOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -30,7 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
     setUtilisateur(u);
-  }, [router]);
+  }, [router, pathname]);
 
   const seDeconnecter = () => {
     deconnexion();
@@ -42,6 +45,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { key: '/admin/salles', icon: <HomeOutlined />, label: <Link href="/admin/salles">Salles</Link> },
     { key: '/admin/etages', icon: <BuildOutlined />, label: <Link href="/admin/etages">Étages</Link> },
     { key: '/admin/entreprises', icon: <BankOutlined />, label: <Link href="/admin/entreprises">Entreprises</Link> },
+    { key: '/admin/statistiques', icon: <BarChartOutlined />, label: <Link href="/admin/statistiques">Statistiques</Link> },
+    { key: '/admin/affichage', icon: <SettingOutlined />, label: <Link href="/admin/affichage">Config. affichage</Link> },
+    { key: '/affichage', icon: <DesktopOutlined />, label: <Link href="/affichage" target="_blank">Affichage public</Link> },
     ...(utilisateur?.role === 'SUPER_ADMIN'
       ? [{ key: '/admin/utilisateurs', icon: <TeamOutlined />, label: <Link href="/admin/utilisateurs">Utilisateurs</Link> }]
       : []),

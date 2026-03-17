@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, Space, Popconfirm, message, Typography, Row, Col, Tag } from 'antd';
+import { App, Card, Table, Button, Modal, Form, Input, InputNumber, Select, Space, Popconfirm, Typography, Row, Col, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
 import { obtenirSalles, creerSalle, supprimerSalle, obtenirEtages } from '@/lib/api';
 import { obtenirUtilisateurConnecte } from '@/lib/auth';
 import { COULEURS } from '@/theme/theme.config';
 
-export default function PageSalles() {
+function PageSallesInner() {
+  const { message } = App.useApp();
   const [salles, setSalles] = useState<any[]>([]);
   const [etages, setEtages] = useState<any[]>([]);
   const [chargement, setChargement] = useState(false);
@@ -108,4 +109,8 @@ export default function PageSalles() {
       </Modal>
     </Card>
   );
+}
+
+export default function PageSalles() {
+  return <App><PageSallesInner /></App>;
 }

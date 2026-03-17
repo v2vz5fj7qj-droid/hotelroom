@@ -33,6 +33,7 @@ export const obtenirReservations = (dateDebut?: string, dateFin?: string) =>
   api.get('/reservations', { params: { dateDebut, dateFin } });
 
 export const creerReservation = (data: any) => api.post('/reservations', data);
+export const modifierReservation = (id: number, data: any) => api.patch(`/reservations/${id}`, data);
 export const supprimerReservation = (id: number) => api.delete(`/reservations/${id}`);
 
 // Étages

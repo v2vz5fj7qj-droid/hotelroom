@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Table, Button, Modal, Form, Input, InputNumber, Space, Popconfirm, message, Typography, Row, Col } from 'antd';
+import { App, Card, Table, Button, Modal, Form, Input, InputNumber, Space, Popconfirm, Typography, Row, Col } from 'antd';
 import { PlusOutlined, DeleteOutlined, BuildOutlined } from '@ant-design/icons';
 import { obtenirEtages, creerEtage, supprimerEtage } from '@/lib/api';
 import { obtenirUtilisateurConnecte } from '@/lib/auth';
 import { COULEURS } from '@/theme/theme.config';
 
-export default function PageEtages() {
+function PageEtagesInner() {
+  const { message } = App.useApp();
   const [etages, setEtages] = useState<any[]>([]);
   const [chargement, setChargement] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -90,4 +91,8 @@ export default function PageEtages() {
       </Modal>
     </Card>
   );
+}
+
+export default function PageEtages() {
+  return <App><PageEtagesInner /></App>;
 }

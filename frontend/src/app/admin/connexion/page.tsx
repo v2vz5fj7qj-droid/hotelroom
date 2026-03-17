@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Form, Input, Button, Card, Typography, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { connexion } from '@/lib/api';
+import { estConnecte } from '@/lib/auth';
 import { COULEURS } from '@/theme/theme.config';
 
 const { Title } = Typography;
@@ -13,6 +14,12 @@ export default function PageConnexion() {
   const router = useRouter();
   const [erreur, setErreur] = useState('');
   const [chargement, setChargement] = useState(false);
+
+  useEffect(() => {
+    if (estConnecte()) {
+      router.replace('/admin/reservations');
+    }
+  }, [router]);
 
   const soumettre = async (valeurs: { email: string; motDePasse: string }) => {
     setErreur('');
@@ -47,7 +54,7 @@ export default function PageConnexion() {
           <Typography.Text type="secondary">Interface d'administration</Typography.Text>
         </div>
 
-        {erreur && <Alert message={erreur} type="error" showIcon style={{ marginBottom: 16 }} />}
+        {erreur && <Alert title={erreur} type="error" showIcon style={{ marginBottom: 16 }} />}
 
         <Form layout="vertical" onFinish={soumettre}>
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email', message: 'Email requis' }]}>

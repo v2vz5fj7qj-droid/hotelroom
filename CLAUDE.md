@@ -21,9 +21,9 @@ Credentials Docker: `root/root`, base `bravia_hotel_db`.
 
 ### Backend (`backend/`)
 ```bash
-npm run dev       # développement avec redémarrage automatique (node --watch)
-npm run start     # production
-npm run debug     # avec inspecteur Node
+npm run start:dev    # développement avec redémarrage automatique
+npm run start        # production
+npm run start:debug  # avec inspecteur Node
 ```
 Config dans `backend/.env` (copier `.env.example`). Les tables sont créées automatiquement au démarrage (`synchronize: true`).
 

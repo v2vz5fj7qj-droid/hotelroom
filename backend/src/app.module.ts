@@ -8,11 +8,13 @@ import { SallesModule } from './salles/salles.module';
 import { EntreprisesModule } from './entreprises/entreprises.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { DatabaseModule } from './database/database.module';
+import { ConfigurationModule } from './configuration/configuration.module';
 import { Utilisateur } from './utilisateurs/utilisateur.entity';
 import { Etage } from './etages/etage.entity';
 import { Salle } from './salles/salle.entity';
 import { Entreprise } from './entreprises/entreprise.entity';
 import { Reservation } from './reservations/reservation.entity';
+import { Configuration } from './configuration/configuration.entity';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { Reservation } from './reservations/reservation.entity';
         username: config.get('DB_USERNAME', 'root'),
         password: config.get('DB_PASSWORD', ''),
         database: config.get('DB_DATABASE', 'bravia_hotel_db'),
-        entities: [Utilisateur, Etage, Salle, Entreprise, Reservation],
+        entities: [Utilisateur, Etage, Salle, Entreprise, Reservation, Configuration],
         synchronize: true,
       }),
     }),
@@ -38,6 +40,7 @@ import { Reservation } from './reservations/reservation.entity';
     SallesModule,
     EntreprisesModule,
     ReservationsModule,
+    ConfigurationModule,
   ],
 })
 export class AppModule {}

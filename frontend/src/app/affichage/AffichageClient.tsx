@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { obtenirReservations } from '@/lib/api';
-import { lireConfig, ConfigAffichage, CONFIG_DEFAUT, GOOGLE_FONTS_URL, injecterGoogleFont, injecterCSS } from '@/lib/configAffichage';
+import { lireConfigAsync, ConfigAffichage, CONFIG_DEFAUT, GOOGLE_FONTS_URL, injecterGoogleFont, injecterCSS } from '@/lib/configAffichage';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 
@@ -17,11 +17,11 @@ interface Reservation {
   notes: string;
   statut: string;
   salle: { id: number; nom: string; etage: { numero: number; nom: string } };
-  entreprise: { id: number; nom: string };
+  entreprise: { id: number; nom: string; logoUrl?: string | null; actif?: boolean };
 }
 
 function formaterEtage(etage: { numero: number; nom: string }): string {
-  return etage.numero === 0 ? 'RDC' : `${etage.numero}ème ÉTAGE`;
+  return etage.numero === 0 ? 'RDC' : `${etage.numero === 1 ? '1er' : `${etage.numero}ème`} ÉTAGE`;
 }
 
 function trierReservations(r: Reservation[]): Reservation[] {
@@ -45,22 +45,27 @@ export default function AffichageClient() {
     } catch { /* silencieux */ }
   }, []);
 
-  // Lecture config + écoute changements (depuis la page admin ouverte en parallèle)
+  // Lecture config depuis l'API (persistée en base) + écoute localStorage pour mises à jour temps réel
   useEffect(() => {
-    const chargerConfig = () => {
-      const config = lireConfig();
-      setCfg(config);
-      // Injecter les polices personnalisées
+    const appliquerConfig = (config: ConfigAffichage) => {
       for (const p of config.policesPersonnalisees) {
         if (p.source === 'google' && p.cssUrl) {
           injecterGoogleFont(`gf-${p.id}`, p.cssUrl);
         } else if (p.source === 'fichier' && p.base64) {
-          injecterCSS(`ff-${p.id}`, `@font-face { font-family: '${p.famille}'; src: url('${p.base64}'); }`);
+          injecterCSS(`ff-${p.id}`, `@font-face { font-family: '${p.label}'; src: url('${p.base64}'); }`);
         }
       }
+      setCfg(config);
     };
-    chargerConfig();
-    const onStorage = () => chargerConfig();
+
+    // Injecter les polices système Google Fonts via <link> (une seule fois)
+    injecterGoogleFont('gf-systeme', GOOGLE_FONTS_URL);
+
+    // Chargement initial depuis l'API
+    lireConfigAsync().then(appliquerConfig);
+
+    // Écoute des changements temps réel depuis l'onglet admin
+    const onStorage = () => lireConfigAsync().then(appliquerConfig);
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
@@ -76,7 +81,11 @@ export default function AffichageClient() {
     return () => clearInterval(poll);
   }, [charger]);
 
-  const triees = trierReservations(reservations);
+  const triees = trierReservations(
+    reservations.filter(
+      (r) => r.statut !== 'ANNULEE' && r.statut !== 'REPORTEE' && r.entreprise.actif !== false,
+    ),
+  );
   const tailleNomVmin = `clamp(28px, ${cfg.tailleNom}vmin, 160px)`;
   const sloganLignes = cfg.texteSlogan.split('\n');
 
@@ -93,10 +102,8 @@ export default function AffichageClient() {
       overflow: 'hidden',
     }}>
 
-      {/* Chargement Google Fonts */}
-      <style>{`
-        @import url('${GOOGLE_FONTS_URL}');
-
+      {/* Styles dynamiques — recréés à chaque changement de police */}
+      <style key={cfg.police}>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         /* ── Responsive ── */
@@ -315,8 +322,26 @@ export default function AffichageClient() {
             <div className="affichage-grille">
               {triees.map((r) => (
                 <div key={r.id} className="affichage-item" style={{ textAlign: 'center' }}>
-                  {/* Nom entreprise */}
-                  <div className="affichage-nom-entreprise">{r.entreprise.nom}</div>
+                  {/* Logo ou nom entreprise */}
+                  {r.entreprise.logoUrl
+                    ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={r.entreprise.logoUrl}
+                        alt={r.entreprise.nom}
+                        style={{
+                          maxHeight: tailleNomVmin,
+                          maxWidth: '80%',
+                          objectFit: 'contain',
+                          margin: '0 auto',
+                          display: 'block',
+                          padding: 'clamp(8px, 1.5vmin, 20px) 0',
+                        }}
+                      />
+                    ) : (
+                      <div className="affichage-nom-entreprise">{r.entreprise.nom}</div>
+                    )
+                  }
 
                   {/* Bloc salle mis en valeur */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(6px, 1.5vw, 20px)', marginBottom: 'clamp(6px, 1.2vmin, 14px)' }}>

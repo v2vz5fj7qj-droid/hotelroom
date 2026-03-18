@@ -26,7 +26,7 @@ const { RangePicker } = DatePicker;
 
 function formaterEtage(etage: any): string {
   if (!etage) return '';
-  return etage.numero === 0 ? 'RDC' : `Étage ${etage.numero}`;
+  return etage.numero === 0 ? 'RDC' : `${etage.numero === 1 ? '1er' : `${etage.numero}ème`} Étage`;
 }
 
 function formaterCreneau(r: any): string {
@@ -122,7 +122,7 @@ function PageReservationsInner() {
       ]);
       setReservations(resRes.data);
       setSalles(resSalles.data);
-      setEntreprises(resEntreprises.data);
+      setEntreprises(resEntreprises.data.filter((e: any) => e.actif));
     } finally {
       setChargement(false);
     }

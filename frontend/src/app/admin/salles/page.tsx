@@ -49,7 +49,7 @@ function PageSallesInner() {
     { title: 'Nom', dataIndex: 'nom', key: 'nom' },
     {
       title: 'Étage', key: 'etage',
-      render: (_: any, r: any) => r.etage?.numero === 0 ? 'RDC' : `Étage ${r.etage?.numero} — ${r.etage?.nom}`,
+      render: (_: any, r: any) => r.etage?.numero === 0 ? 'RDC' : `${r.etage?.numero === 1 ? '1er' : `${r.etage?.numero}ème`} Étage — ${r.etage?.nom}`,
     },
     {
       title: 'Capacité', dataIndex: 'capacite', key: 'capacite',
@@ -95,7 +95,7 @@ function PageSallesInner() {
           <Form.Item name="etageId" label="Étage" rules={[{ required: true, message: 'Requis' }]}>
             <Select placeholder="Choisir un étage" options={etages.map((e) => ({
               value: e.id,
-              label: e.numero === 0 ? `RDC — ${e.nom}` : `Étage ${e.numero} — ${e.nom}`,
+              label: e.numero === 0 ? `RDC — ${e.nom}` : `${e.numero === 1 ? '1er' : `${e.numero}ème`} Étage — ${e.nom}`,
             }))} />
           </Form.Item>
           <Form.Item name="capacite" label="Capacité (personnes)" rules={[{ required: true, message: 'Requis' }]}>

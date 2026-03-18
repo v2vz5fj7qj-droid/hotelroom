@@ -12,10 +12,12 @@ import {
 import type { UploadFile } from 'antd';
 import { HexColorPicker } from 'react-colorful';
 import {
-  lireConfig, sauvegarderConfig, reinitialiserConfig,
+  lireConfigAsync, sauvegarderConfig, sauvegarderConfigAsync,
+  reinitialiserConfigAsync, reinitialiserConfig,
   ConfigAffichage, CONFIG_DEFAUT, POLICES_SYSTEME, PolicePersonnalisee,
   injecterGoogleFont, injecterCSS, construireGoogleFontsUrl,
 } from '@/lib/configAffichage';
+import { obtenirUtilisateurConnecte } from '@/lib/auth';
 import { COULEURS } from '@/theme/theme.config';
 
 const { Title, Text } = Typography;
@@ -111,15 +113,16 @@ function PageConfigAffichageInner() {
   const [chargementFont, setChargementFont] = useState(false);
 
   useEffect(() => {
-    const config = lireConfig();
-    setCfg(config);
-    for (const p of config.policesPersonnalisees) {
-      if (p.source === 'google' && p.cssUrl) {
-        injecterGoogleFont(`gf-${p.id}`, p.cssUrl);
-      } else if (p.source === 'fichier' && p.base64) {
-        injecterCSS(`ff-${p.id}`, `@font-face { font-family: '${p.famille}'; src: url('${p.base64}'); }`);
+    lireConfigAsync().then((config) => {
+      setCfg(config);
+      for (const p of config.policesPersonnalisees) {
+        if (p.source === 'google' && p.cssUrl) {
+          injecterGoogleFont(`gf-${p.id}`, p.cssUrl);
+        } else if (p.source === 'fichier' && p.base64) {
+          injecterCSS(`ff-${p.id}`, `@font-face { font-family: '${p.label}'; src: url('${p.base64}'); }`);
+        }
       }
-    }
+    });
   }, []);
 
   const maj = (champ: keyof ConfigAffichage, valeur: any) => {
@@ -127,17 +130,28 @@ function PageConfigAffichageInner() {
     setModifie(true);
   };
 
-  const enregistrer = () => {
-    sauvegarderConfig(cfg);
-    setModifie(false);
-    message.success('Configuration enregistrée');
+  const enregistrer = async () => {
+    const token = localStorage.getItem('token') || '';
+    try {
+      await sauvegarderConfigAsync(cfg, token);
+      setModifie(false);
+      message.success('Configuration enregistrée');
+    } catch {
+      message.error('Erreur lors de la sauvegarde');
+    }
   };
 
-  const reinitialiser = () => {
-    reinitialiserConfig();
-    setCfg(CONFIG_DEFAUT);
-    setModifie(false);
-    message.success('Configuration réinitialisée');
+  const reinitialiser = async () => {
+    const token = localStorage.getItem('token') || '';
+    try {
+      await reinitialiserConfigAsync(token);
+      reinitialiserConfig();
+      setCfg(CONFIG_DEFAUT);
+      setModifie(false);
+      message.success('Configuration réinitialisée');
+    } catch {
+      message.error('Erreur lors de la réinitialisation');
+    }
   };
 
   const ouvrir = () => {

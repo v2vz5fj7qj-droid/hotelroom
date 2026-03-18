@@ -58,12 +58,42 @@ export const CONFIG_DEFAUT: ConfigAffichage = {
   policesPersonnalisees: [],
 };
 
-const CLE = 'bravia_affichage_config';
+const CLE_API = 'affichage';
+const CLE_LS = 'bravia_affichage_config';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
 
+// ── Lecture : API en priorité, localStorage en cache/fallback ────────────────
+
+export async function lireConfigAsync(): Promise<ConfigAffichage> {
+  try {
+    const res = await fetch(`${API_URL}/configuration/${CLE_API}`);
+    if (res.ok) {
+      const { valeur } = await res.json();
+      if (valeur) {
+        const config = { ...CONFIG_DEFAUT, ...JSON.parse(valeur) };
+        // Mettre à jour le cache local
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(CLE_LS, valeur);
+        }
+        return config;
+      }
+    }
+  } catch { /* réseau indisponible → fallback */ }
+
+  // Fallback localStorage
+  if (typeof window === 'undefined') return CONFIG_DEFAUT;
+  try {
+    const raw = localStorage.getItem(CLE_LS);
+    if (raw) return { ...CONFIG_DEFAUT, ...JSON.parse(raw) };
+  } catch { /* */ }
+  return CONFIG_DEFAUT;
+}
+
+// Lecture synchrone depuis le cache local uniquement (pour l'initialisation d'état)
 export function lireConfig(): ConfigAffichage {
   if (typeof window === 'undefined') return CONFIG_DEFAUT;
   try {
-    const raw = localStorage.getItem(CLE);
+    const raw = localStorage.getItem(CLE_LS);
     if (!raw) return CONFIG_DEFAUT;
     return { ...CONFIG_DEFAUT, ...JSON.parse(raw) };
   } catch {
@@ -71,14 +101,45 @@ export function lireConfig(): ConfigAffichage {
   }
 }
 
+// ── Sauvegarde : API + cache local ──────────────────────────────────────────
+
+export async function sauvegarderConfigAsync(config: ConfigAffichage, token: string): Promise<void> {
+  const valeur = JSON.stringify(config);
+  // Sauvegarder en base via l'API
+  const res = await fetch(`${API_URL}/configuration/${CLE_API}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ valeur }),
+  });
+  if (!res.ok) {
+    throw new Error(`Erreur HTTP ${res.status}`);
+  }
+  // Mettre à jour le cache local
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CLE_LS, valeur);
+  }
+}
+
+// Compatibilité : sauvegarde locale uniquement (utilisée pour l'aperçu temps réel)
 export function sauvegarderConfig(config: ConfigAffichage): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(CLE, JSON.stringify(config));
+  localStorage.setItem(CLE_LS, JSON.stringify(config));
+}
+
+export async function reinitialiserConfigAsync(token: string): Promise<void> {
+  await fetch(`${API_URL}/configuration/${CLE_API}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ valeur: '' }),
+  });
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(CLE_LS);
+  }
 }
 
 export function reinitialiserConfig(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(CLE);
+  localStorage.removeItem(CLE_LS);
 }
 
 export const POLICES_SYSTEME = [

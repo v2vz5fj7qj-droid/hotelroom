@@ -9,6 +9,35 @@ export class Entreprise {
   @Column({ unique: true })
   nom: string;
 
+  // Coordonnées
+  @Column({ type: 'varchar', nullable: true, default: null })
+  telephone: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  email: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  adresse: string;
+
+  // Identification
+  @Column({ type: 'varchar', nullable: true, default: null })
+  secteur: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  numeroIFU: string;
+
+  // Personne de contact
+  @Column({ type: 'varchar', nullable: true, default: null })
+  contactNom: string;
+
+  // Notes libres
+  @Column({ type: 'text', nullable: true, default: null })
+  notes: string;
+
+  // Logo (base64)
+  @Column({ type: 'longtext', nullable: true, default: null })
+  logoUrl: string;
+
   @Column({ default: true })
   actif: boolean;
 

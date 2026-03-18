@@ -31,13 +31,14 @@ interface Reservation {
   heureFin: string | null;
   estJourneeEntiere: boolean;
   notes: string;
+  statut: string;
   salle: { id: number; nom: string; etage: { numero: number; nom: string } };
-  entreprise: { id: number; nom: string };
+  entreprise: { id: number; nom: string; actif?: boolean };
 }
 
 function formaterEtage(numero: number, nom: string): string {
   if (numero === 0) return `RDC — ${nom}`;
-  return `Étage ${numero} — ${nom}`;
+  return `${numero === 1 ? '1er' : `${numero}ème`} Étage — ${nom}`;
 }
 
 function formaterCreneau(r: Reservation): string {
@@ -106,7 +107,12 @@ export default function PagePublique() {
   }
 
   const reservParDate = (date: Dayjs) =>
-    reservations.filter((r) => r.date === date.format('YYYY-MM-DD'));
+    reservations.filter(
+      (r) => r.date === date.format('YYYY-MM-DD')
+        && r.statut !== 'ANNULEE'
+        && r.statut !== 'REPORTEE'
+        && r.entreprise.actif !== false,
+    );
 
   const naviguer = (direction: -1 | 1) => {
     const unite = vue === 'jour' ? 'day' : vue === 'semaine' ? 'week' : 'month';

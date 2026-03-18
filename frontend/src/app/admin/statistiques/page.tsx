@@ -47,7 +47,7 @@ const formatHeures = (minutes: number) => {
   return `${h} h ${m} min`;
 };
 
-const etageLabel = (numero: number) => (numero === 0 ? 'RDC' : `Etage ${numero}`);
+const etageLabel = (numero: number) => (numero === 0 ? 'RDC' : `${numero === 1 ? '1er' : `${numero}ème`} Étage`);
 
 export default function PageStatistiques() {
   const [entreprises, setEntreprises] = useState<Entreprise[]>([]);

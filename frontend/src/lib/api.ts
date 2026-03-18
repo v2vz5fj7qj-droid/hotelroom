@@ -54,6 +54,11 @@ export const creerEntreprise = (data: any) => api.post('/entreprises', data);
 export const supprimerEntreprise = (id: number) => api.delete(`/entreprises/${id}`);
 export const modifierEntreprise = (id: number, data: any) => api.patch(`/entreprises/${id}`, data);
 
+// Configuration
+export const lireConfigurationAPI = (cle: string) => api.get(`/configuration/${cle}`);
+export const sauvegarderConfigurationAPI = (cle: string, valeur: string) =>
+  api.put(`/configuration/${cle}`, { valeur });
+
 // Utilisateurs
 export const obtenirUtilisateurs = () => api.get('/utilisateurs');
 export const creerUtilisateur = (data: any) => api.post('/utilisateurs', data);

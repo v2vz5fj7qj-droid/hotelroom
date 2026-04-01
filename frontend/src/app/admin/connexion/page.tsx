@@ -49,16 +49,16 @@ export default function PageConnexion() {
       <Card style={{ width: 380, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Title level={3} style={{ color: COULEURS.primaire, margin: 0 }}>
-            Bravia Hôtel
+            Hotel Manager
           </Title>
           <Typography.Text type="secondary">Interface d'administration</Typography.Text>
         </div>
 
-        {erreur && <Alert title={erreur} type="error" showIcon style={{ marginBottom: 16 }} />}
+        {erreur && <Alert message={erreur} type="error" showIcon style={{ marginBottom: 16 }} />}
 
         <Form layout="vertical" onFinish={soumettre}>
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email', message: 'Email requis' }]}>
-            <Input prefix={<UserOutlined />} placeholder="admin@bravia.com" />
+            <Input prefix={<UserOutlined />} placeholder="votre@email.com" />
           </Form.Item>
           <Form.Item name="motDePasse" label="Mot de passe" rules={[{ required: true, message: 'Mot de passe requis' }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="••••••••" />

@@ -24,7 +24,10 @@ export class Reservation {
   entrepriseId: number;
 
   @Column({ type: 'date' })
-  date: string;
+  dateDebut: string;
+
+  @Column({ type: 'date' })
+  dateFin: string;
 
   @Column({ type: 'time', nullable: true })
   heureDebut: string | null;

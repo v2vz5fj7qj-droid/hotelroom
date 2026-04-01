@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import {
-  App, Card, Table, Button, Modal, Form, Input, Space,
+  App, Card, Table, Button, Modal, Form, Input, Select, Space,
   Popconfirm, Typography, Row, Col, Upload, Tooltip, Tag, Divider, Switch,
 } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, BankOutlined, EditOutlined,
   UploadOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined,
-  UserOutlined,
+  UserOutlined, ApartmentOutlined,
 } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
-import { obtenirEntreprises, creerEntreprise, supprimerEntreprise, modifierEntreprise } from '@/lib/api';
+import { obtenirEntreprises, creerEntreprise, supprimerEntreprise, modifierEntreprise, obtenirHotels } from '@/lib/api';
 import { obtenirUtilisateurConnecte } from '@/lib/auth';
 import { COULEURS } from '@/theme/theme.config';
 
@@ -20,18 +20,24 @@ const { Text } = Typography;
 function PageEntreprisesInner() {
   const { message } = App.useApp();
   const [entreprises, setEntreprises] = useState<any[]>([]);
+  const [hotels, setHotels] = useState<any[]>([]);
   const [chargement, setChargement] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [entrepriseEnEdition, setEntrepriseEnEdition] = useState<any | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
   const [form] = Form.useForm();
   const utilisateur = obtenirUtilisateurConnecte();
-  const peutModifier = utilisateur?.role === 'SUPER_ADMIN' || utilisateur?.role === 'ADMIN';
+  const peutModifier = utilisateur?.role === 'SUPER_ADMIN' || utilisateur?.role === 'HOTEL_ADMIN';
+  const estSuperAdmin = utilisateur?.role === 'SUPER_ADMIN';
 
   const charger = async () => {
     setChargement(true);
-    const { data } = await obtenirEntreprises();
-    setEntreprises(data);
+    const [resEntreprises, resHotels] = await Promise.all([
+      obtenirEntreprises(),
+      estSuperAdmin ? obtenirHotels() : Promise.resolve({ data: [] }),
+    ]);
+    setEntreprises(resEntreprises.data);
+    setHotels(resHotels.data);
     setChargement(false);
   };
 
@@ -108,6 +114,12 @@ function PageEntreprisesInner() {
   };
 
   const colonnes = [
+    ...(estSuperAdmin ? [{
+      title: 'Hôtel', key: 'hotel',
+      render: (_: any, r: any) => (
+        <Tag color="geekblue" icon={<ApartmentOutlined />}>{r.hotel?.nom ?? '—'}</Tag>
+      ),
+    }] : []),
     {
       title: 'Entreprise',
       key: 'entreprise',
@@ -231,6 +243,18 @@ function PageEntreprisesInner() {
       >
         <Form form={form} layout="vertical" onFinish={soumettre}>
 
+          {estSuperAdmin && !entrepriseEnEdition && (
+            <Form.Item name="hotelId" label="Hôtel" rules={[{ required: true, message: 'Sélectionner un hôtel' }]}>
+              <Select
+                placeholder="Sélectionner un hôtel"
+                options={hotels.map((h) => ({ value: h.id, label: h.nom }))}
+                showSearch
+                filterOption={(input, opt) =>
+                  (opt?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                }
+              />
+            </Form.Item>
+          )}
           <Divider  style={{ fontSize: 12, color: COULEURS.primaire }}>Identité</Divider>
           <Row gutter={16}>
             <Col span={16}>

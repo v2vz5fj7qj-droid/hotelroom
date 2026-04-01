@@ -10,7 +10,8 @@ dayjs.locale('fr');
 
 interface Reservation {
   id: number;
-  date: string;
+  dateDebut: string;
+  dateFin: string;
   heureDebut: string | null;
   heureFin: string | null;
   estJourneeEntiere: boolean;
@@ -40,7 +41,7 @@ export default function AffichageClient() {
   const charger = useCallback(async () => {
     try {
       const aujourd = dayjs().format('YYYY-MM-DD');
-      const { data } = await obtenirReservations(aujourd, aujourd);
+      const { data } = await obtenirReservations(undefined, aujourd, aujourd);
       setReservations(data);
     } catch { /* silencieux */ }
   }, []);

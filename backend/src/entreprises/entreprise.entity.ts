@@ -1,13 +1,22 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, ManyToOne, JoinColumn, Unique } from 'typeorm';
 import { Reservation } from '../reservations/reservation.entity';
+import { Hotel } from '../hotels/hotel.entity';
 
 @Entity('entreprises')
+@Unique(['nom', 'hotelId'])
 export class Entreprise {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column()
   nom: string;
+
+  @Column()
+  hotelId: number;
+
+  @ManyToOne(() => Hotel, (h) => h.entreprises, { eager: false })
+  @JoinColumn({ name: 'hotelId' })
+  hotel: Hotel;
 
   // Coordonnées
   @Column({ type: 'varchar', nullable: true, default: null })

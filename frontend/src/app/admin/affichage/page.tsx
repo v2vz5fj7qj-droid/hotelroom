@@ -7,7 +7,7 @@ import {
 } from 'antd';
 import {
   DesktopOutlined, SaveOutlined, UndoOutlined, EyeOutlined,
-  UploadOutlined, DeleteOutlined, PlusOutlined, FontColorsOutlined,
+  UploadOutlined, DeleteOutlined, PlusOutlined, FontColorsOutlined, BgColorsOutlined,
 } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
 import { HexColorPicker } from 'react-colorful';
@@ -16,6 +16,7 @@ import {
   reinitialiserConfigAsync, reinitialiserConfig,
   ConfigAffichage, CONFIG_DEFAUT, POLICES_SYSTEME, PolicePersonnalisee,
   injecterGoogleFont, injecterCSS, construireGoogleFontsUrl,
+  THEMES_PRESET, ThemePreset,
 } from '@/lib/configAffichage';
 import { obtenirUtilisateurConnecte } from '@/lib/auth';
 import { COULEURS } from '@/theme/theme.config';
@@ -25,7 +26,7 @@ const { Title, Text } = Typography;
 // ── Composants utilitaires définis HORS du composant principal ────────────────
 // (évite la recréation de types à chaque render, ce qui forcerait un démontage)
 
-function Section({ titre, children }: { titre: string; children: React.ReactNode }) {
+function Section({ titre, children }: { titre: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 24 }}>
       <Divider style={{ color: COULEURS.primaire, borderColor: COULEURS.primaire + '40', marginBottom: 16 }}>
@@ -102,18 +103,82 @@ function ChoixCouleur({ value, onChange }: { value: string; onChange: (hex: stri
   );
 }
 
+const LABEL_CATEGORIE: Record<ThemePreset['categorie'], { label: string; color: string }> = {
+  saison:    { label: 'Saison',     color: 'green' },
+  evenement: { label: 'Événement',  color: 'purple' },
+  ambiance:  { label: 'Ambiance',   color: 'blue' },
+};
+
+function CarteTheme({
+  theme,
+  actif,
+  onAppliquer,
+}: {
+  theme: ThemePreset;
+  actif: boolean;
+  onAppliquer: (t: ThemePreset) => void;
+}) {
+  const c = theme.config;
+  const cat = LABEL_CATEGORIE[theme.categorie];
+  return (
+    <div
+      onClick={() => onAppliquer(theme)}
+      style={{
+        cursor: 'pointer',
+        borderRadius: 10,
+        border: actif ? `2px solid ${COULEURS.primaire}` : '2px solid transparent',
+        boxShadow: actif
+          ? `0 0 0 2px ${COULEURS.primaire}40, 0 2px 12px rgba(0,0,0,0.10)`
+          : '0 1px 6px rgba(0,0,0,0.08)',
+        background: c.couleurFond ?? '#fff',
+        overflow: 'hidden',
+        transition: 'box-shadow 0.18s, border 0.18s',
+        userSelect: 'none',
+      }}
+    >
+      {/* Bande de couleurs */}
+      <div style={{ display: 'flex', height: 8 }}>
+        <div style={{ flex: 1, background: c.couleurTitre ?? '#701c45' }} />
+        <div style={{ flex: 1, background: c.couleurLignes ?? '#701c45' }} />
+        <div style={{ flex: 1, background: c.couleurSalle ?? '#1a1a1a' }} />
+      </div>
+
+      <div style={{ padding: '10px 12px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <span style={{ fontSize: 18 }}>{theme.emoji}</span>
+          <span style={{
+            fontWeight: 700, fontSize: 13,
+            color: c.couleurTitre ?? '#701c45',
+            fontFamily: c.police ?? 'Georgia, serif',
+            flex: 1,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {theme.nom}
+          </span>
+          {actif && <Tag color={COULEURS.primaire} style={{ fontSize: 10, marginRight: 0 }}>Actif</Tag>}
+        </div>
+        <Tag color={cat.color} style={{ fontSize: 10, marginBottom: 6 }}>{cat.label}</Tag>
+        <div style={{ fontSize: 11, color: '#666', lineHeight: 1.4 }}>{theme.description}</div>
+      </div>
+    </div>
+  );
+}
+
 // ── Composant principal ───────────────────────────────────────────────────────
 
 function PageConfigAffichageInner() {
   const { message } = App.useApp();
   const [cfg, setCfg] = useState<ConfigAffichage>(CONFIG_DEFAUT);
   const [modifie, setModifie] = useState(false);
+  const [themeActifId, setThemeActifId] = useState<string | null>(null);
+  const [filtreCategorie, setFiltreCategorie] = useState<string>('tous');
   const previewRef = useRef<Window | null>(null);
   const [nomGoogleFont, setNomGoogleFont] = useState('');
   const [chargementFont, setChargementFont] = useState(false);
 
   useEffect(() => {
-    lireConfigAsync().then((config) => {
+    const u = obtenirUtilisateurConnecte();
+    lireConfigAsync(u?.hotelId ?? undefined).then((config) => {
       setCfg(config);
       for (const p of config.policesPersonnalisees) {
         if (p.source === 'google' && p.cssUrl) {
@@ -127,13 +192,21 @@ function PageConfigAffichageInner() {
 
   const maj = (champ: keyof ConfigAffichage, valeur: any) => {
     setCfg((prev) => ({ ...prev, [champ]: valeur }));
+    setThemeActifId(null);
+    setModifie(true);
+  };
+
+  const appliquerTheme = (theme: ThemePreset) => {
+    setCfg((prev) => ({ ...prev, ...theme.config }));
+    setThemeActifId(theme.id);
     setModifie(true);
   };
 
   const enregistrer = async () => {
+    const u = obtenirUtilisateurConnecte();
     const token = localStorage.getItem('token') || '';
     try {
-      await sauvegarderConfigAsync(cfg, token);
+      await sauvegarderConfigAsync(cfg, token, u?.hotelId ?? undefined);
       setModifie(false);
       message.success('Configuration enregistrée');
     } catch {
@@ -142,10 +215,11 @@ function PageConfigAffichageInner() {
   };
 
   const reinitialiser = async () => {
+    const u = obtenirUtilisateurConnecte();
     const token = localStorage.getItem('token') || '';
     try {
-      await reinitialiserConfigAsync(token);
-      reinitialiserConfig();
+      await reinitialiserConfigAsync(token, u?.hotelId ?? undefined);
+      reinitialiserConfig(u?.hotelId ?? undefined);
       setCfg(CONFIG_DEFAUT);
       setModifie(false);
       message.success('Configuration réinitialisée');
@@ -155,8 +229,10 @@ function PageConfigAffichageInner() {
   };
 
   const ouvrir = () => {
-    sauvegarderConfig(cfg);
-    previewRef.current = window.open('/affichage', '_blank') ?? null;
+    const u = obtenirUtilisateurConnecte();
+    const slug = u?.hotel?.slug;
+    sauvegarderConfig(cfg, u?.hotelId ?? undefined);
+    previewRef.current = window.open(slug ? `/affichage/${slug}` : '/affichage', '_blank') ?? null;
   };
 
   const handleLogoUpload = (file: File) => {
@@ -284,6 +360,47 @@ function PageConfigAffichageInner() {
           Modifications non enregistrées — cliquez sur <strong>Enregistrer</strong> pour appliquer sur l'écran.
         </div>
       )}
+
+      {/* ── Sélecteur de thèmes ── */}
+      <Section titre={<span><BgColorsOutlined /> Thèmes prédéfinis</span>}>
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 12, color: '#666' }}>Filtrer :</Text>
+          {[
+            { value: 'tous', label: 'Tous' },
+            { value: 'saison', label: '🍂 Saisons' },
+            { value: 'evenement', label: '✨ Événements' },
+            { value: 'ambiance', label: '💼 Ambiances' },
+          ].map((f) => (
+            <Tag
+              key={f.value}
+              color={filtreCategorie === f.value ? COULEURS.primaire : undefined}
+              style={{ cursor: 'pointer', userSelect: 'none', fontSize: 12 }}
+              onClick={() => setFiltreCategorie(f.value)}
+            >
+              {f.label}
+            </Tag>
+          ))}
+        </div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: 12,
+        }}>
+          {THEMES_PRESET
+            .filter((t) => filtreCategorie === 'tous' || t.categorie === filtreCategorie)
+            .map((theme) => (
+              <CarteTheme
+                key={theme.id}
+                theme={theme}
+                actif={themeActifId === theme.id}
+                onAppliquer={appliquerTheme}
+              />
+            ))}
+        </div>
+        <Text type="secondary" style={{ fontSize: 11, marginTop: 8, display: 'block' }}>
+          Cliquez sur un thème pour l'appliquer. Vous pouvez ensuite affiner les couleurs et la police manuellement.
+        </Text>
+      </Section>
 
       <Row gutter={32}>
         {/* ── Colonne gauche ── */}

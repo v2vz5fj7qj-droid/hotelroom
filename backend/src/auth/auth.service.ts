@@ -20,7 +20,12 @@ export class AuthService {
   }
 
   async connexion(utilisateur: any) {
-    const payload = { sub: utilisateur.id, email: utilisateur.email, role: utilisateur.role };
+    const payload = {
+      sub: utilisateur.id,
+      email: utilisateur.email,
+      role: utilisateur.role,
+      hotelId: utilisateur.hotelId ?? null,
+    };
     return {
       access_token: this.jwtService.sign(payload),
       utilisateur: {
@@ -29,6 +34,10 @@ export class AuthService {
         prenom: utilisateur.prenom,
         nom: utilisateur.nom,
         role: utilisateur.role,
+        hotelId: utilisateur.hotelId ?? null,
+        hotel: utilisateur.hotel
+          ? { id: utilisateur.hotel.id, nom: utilisateur.hotel.nom, slug: utilisateur.hotel.slug }
+          : null,
       },
     };
   }

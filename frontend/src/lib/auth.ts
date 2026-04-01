@@ -1,9 +1,17 @@
+export interface HotelInfo {
+  id: number;
+  nom: string;
+  slug: string;
+}
+
 export interface UtilisateurConnecte {
   id: number;
   email: string;
   prenom: string;
   nom: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'VIEWER';
+  role: 'SUPER_ADMIN' | 'HOTEL_ADMIN' | 'HOTEL_VIEWER';
+  hotelId: number | null;
+  hotel: HotelInfo | null;
 }
 
 function tokenEstExpire(token: string): boolean {

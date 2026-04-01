@@ -10,12 +10,17 @@ export class ConfigurationService {
     private repo: Repository<Configuration>,
   ) {}
 
-  async lire(cle: string): Promise<string | null> {
-    const config = await this.repo.findOne({ where: { cle } });
+  async lire(cle: string, hotelId: number): Promise<string | null> {
+    const config = await this.repo.findOne({ where: { cle, hotelId } });
     return config?.valeur ?? null;
   }
 
-  async sauvegarder(cle: string, valeur: string): Promise<void> {
-    await this.repo.upsert({ cle, valeur }, ['cle']);
+  async sauvegarder(cle: string, hotelId: number, valeur: string): Promise<void> {
+    const existing = await this.repo.findOne({ where: { cle, hotelId } });
+    if (existing) {
+      await this.repo.update(existing.id, { valeur });
+    } else {
+      await this.repo.save(this.repo.create({ cle, hotelId, valeur }));
+    }
   }
 }

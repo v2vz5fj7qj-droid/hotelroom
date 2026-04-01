@@ -8,8 +8,11 @@ export class CreerReservationDto {
   @IsInt()
   entrepriseId: number;
 
-  @IsDateString({}, { message: 'La date doit être au format YYYY-MM-DD' })
-  date: string;
+  @IsDateString({}, { message: 'La date de début doit être au format YYYY-MM-DD' })
+  dateDebut: string;
+
+  @IsDateString({}, { message: 'La date de fin doit être au format YYYY-MM-DD' })
+  dateFin: string;
 
   @IsBoolean()
   estJourneeEntiere: boolean;

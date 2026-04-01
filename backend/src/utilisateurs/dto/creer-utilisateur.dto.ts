@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsInt, MinLength } from 'class-validator';
 import { Role } from '../../auth/roles.enum';
 
 export class CreerUtilisateurDto {
@@ -17,4 +17,8 @@ export class CreerUtilisateurDto {
   @IsOptional()
   @IsEnum(Role, { message: 'Rôle invalide' })
   role?: Role;
+
+  @IsOptional()
+  @IsInt()
+  hotelId?: number;
 }

@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Role } from '../auth/roles.enum';
+import { Hotel } from '../hotels/hotel.entity';
 
 @Entity('utilisateurs')
 export class Utilisateur {
@@ -18,8 +19,15 @@ export class Utilisateur {
   @Column()
   motDePasse: string;
 
-  @Column({ type: 'enum', enum: Role, default: Role.VIEWER })
+  @Column({ type: 'enum', enum: Role, default: Role.HOTEL_VIEWER })
   role: Role;
+
+  @Column({ nullable: true })
+  hotelId: number;
+
+  @ManyToOne(() => Hotel, (h) => h.utilisateurs, { eager: false, nullable: true })
+  @JoinColumn({ name: 'hotelId' })
+  hotel: Hotel;
 
   @Column({ default: true })
   actif: boolean;

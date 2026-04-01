@@ -16,7 +16,7 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import {
   obtenirReservations, creerReservation, modifierReservation, supprimerReservation,
-  obtenirSalles, obtenirEntreprises,
+  obtenirSalles, obtenirEntreprises, obtenirHotels,
 } from '@/lib/api';
 import { obtenirUtilisateurConnecte } from '@/lib/auth';
 import { COULEURS } from '@/theme/theme.config';
@@ -34,20 +34,28 @@ function formaterCreneau(r: any): string {
   return `${r.heureDebut?.slice(0, 5)} – ${r.heureFin?.slice(0, 5)}`;
 }
 
+function formaterPlage(r: any): string {
+  if (r.dateDebut === r.dateFin) return dayjs(r.dateDebut).format('DD/MM/YYYY');
+  return `${dayjs(r.dateDebut).format('DD/MM/YY')} → ${dayjs(r.dateFin).format('DD/MM/YY')}`;
+}
+
 type EtatTemporel = 'A_VENIR' | 'EN_COURS' | 'PASSEE';
 
 function calculerEtatTemporel(r: any): EtatTemporel {
   const maintenant = dayjs();
-  const date = dayjs(r.date);
+  const debut = dayjs(r.dateDebut);
+  const fin = dayjs(r.dateFin);
+
   if (r.estJourneeEntiere) {
-    if (date.isBefore(maintenant, 'day')) return 'PASSEE';
-    if (date.isSame(maintenant, 'day')) return 'EN_COURS';
-    return 'A_VENIR';
+    if (fin.isBefore(maintenant, 'day')) return 'PASSEE';
+    if (debut.isAfter(maintenant, 'day')) return 'A_VENIR';
+    return 'EN_COURS';
   }
-  const debut = dayjs(`${r.date} ${r.heureDebut}`);
-  const fin = dayjs(`${r.date} ${r.heureFin}`);
-  if (maintenant.isBefore(debut)) return 'A_VENIR';
-  if (maintenant.isAfter(fin)) return 'PASSEE';
+
+  const debutDateTime = dayjs(`${r.dateDebut} ${r.heureDebut}`);
+  const finDateTime = dayjs(`${r.dateFin} ${r.heureFin}`);
+  if (maintenant.isBefore(debutDateTime)) return 'A_VENIR';
+  if (maintenant.isAfter(finDateTime)) return 'PASSEE';
   return 'EN_COURS';
 }
 
@@ -69,7 +77,8 @@ const STATUT_CONFIG: Record<StatutReservation, { label: string; color: string }>
 
 function lignesExport(reservations: any[]) {
   return reservations.map((r) => ({
-    Date: dayjs(r.date).format('DD/MM/YYYY'),
+    'Date début': dayjs(r.dateDebut).format('DD/MM/YYYY'),
+    'Date fin': dayjs(r.dateFin).format('DD/MM/YYYY'),
     Créneau: formaterCreneau(r),
     Salle: r.salle?.nom ?? '',
     Étage: formaterEtage(r.salle?.etage),
@@ -110,32 +119,74 @@ function PageReservationsInner() {
   const [formExport] = Form.useForm();
 
   const utilisateur = obtenirUtilisateurConnecte();
-  const peutModifier = utilisateur?.role === 'SUPER_ADMIN' || utilisateur?.role === 'ADMIN';
+  const peutModifier = utilisateur?.role === 'SUPER_ADMIN' || utilisateur?.role === 'HOTEL_ADMIN';
+  const estSuperAdmin = utilisateur?.role === 'SUPER_ADMIN';
+
+  // Pour SUPER_ADMIN : liste des hôtels + filtre actif
+  const [hotels, setHotels] = useState<any[]>([]);
+  const [hotelFiltreId, setHotelFiltreId] = useState<number | undefined>(undefined);
+
+  // Pour le formulaire de création (SUPER_ADMIN) : données scoped à l'hôtel sélectionné
+  const [sallesForm, setSallesForm] = useState<any[]>([]);
+  const [entreprisesForm, setEntreprisesForm] = useState<any[]>([]);
+  const [chargementForm, setChargementForm] = useState(false);
 
   const charger = async () => {
     setChargement(true);
     try {
-      const [resRes, resSalles, resEntreprises] = await Promise.all([
-        obtenirReservations(),
-        obtenirSalles(),
-        obtenirEntreprises(),
-      ]);
+      const promises: Promise<any>[] = [
+        obtenirReservations(hotelFiltreId),
+        estSuperAdmin ? obtenirHotels() : obtenirSalles(),
+        estSuperAdmin
+          ? (hotelFiltreId ? obtenirSalles(hotelFiltreId) : Promise.resolve({ data: [] }))
+          : obtenirEntreprises(),
+        estSuperAdmin && hotelFiltreId
+          ? obtenirEntreprises(hotelFiltreId)
+          : Promise.resolve({ data: [] }),
+      ];
+      const [resRes, second, third, fourth] = await Promise.all(promises);
       setReservations(resRes.data);
-      setSalles(resSalles.data);
-      setEntreprises(resEntreprises.data.filter((e: any) => e.actif));
+      if (estSuperAdmin) {
+        setHotels(second.data);
+        setSalles(third.data);
+        setEntreprises(fourth.data.filter((e: any) => e.actif));
+      } else {
+        setSalles(second.data);
+        setEntreprises(third.data.filter((e: any) => e.actif));
+        setSallesForm(second.data);
+        setEntreprisesForm(third.data.filter((e: any) => e.actif));
+      }
     } finally {
       setChargement(false);
     }
   };
 
-  useEffect(() => { charger(); }, []);
+  useEffect(() => { charger(); }, [hotelFiltreId]);
+
+  // Quand SUPER_ADMIN sélectionne un hôtel dans le formulaire, charge les salles/entreprises
+  const onHotelFormChange = async (hotelId: number) => {
+    form.setFieldValue('salleId', undefined);
+    form.setFieldValue('entrepriseId', undefined);
+    setSallesForm([]);
+    setEntreprisesForm([]);
+    setChargementForm(true);
+    const [resSalles, resEntreprises] = await Promise.all([
+      obtenirSalles(hotelId),
+      obtenirEntreprises(hotelId),
+    ]);
+    setSallesForm(resSalles.data);
+    setEntreprisesForm(resEntreprises.data.filter((e: any) => e.actif));
+    setChargementForm(false);
+  };
 
   // --- Filtrage ---
   const reservationsFiltrees = useMemo(() => {
     return reservations.filter((r) => {
       if (filtrePeriode) {
-        const date = dayjs(r.date);
-        if (date.isBefore(filtrePeriode[0], 'day') || date.isAfter(filtrePeriode[1], 'day')) return false;
+        // La réservation chevauche la période de filtre
+        const debutR = dayjs(r.dateDebut);
+        const finR = dayjs(r.dateFin);
+        if (finR.isBefore(filtrePeriode[0], 'day') || debutR.isAfter(filtrePeriode[1], 'day')) return false;
       }
       if (filtreSalle && r.salle?.id !== filtreSalle) return false;
       if (filtreEntreprise && r.entreprise?.id !== filtreEntreprise) return false;
@@ -160,10 +211,11 @@ function PageReservationsInner() {
     setFiltreEntreprise(null);
     setFiltreStatut(null);
     setFiltreEtat(null);
+    if (estSuperAdmin) setHotelFiltreId(undefined);
   };
 
   const filtresActifs =
-    !!recherche || !!filtrePeriode || !!filtreSalle || !!filtreEntreprise || !!filtreStatut || !!filtreEtat;
+    !!recherche || !!filtrePeriode || !!filtreSalle || !!filtreEntreprise || !!filtreStatut || !!filtreEtat || !!hotelFiltreId;
 
   // --- Export ---
   const ouvrirExport = (format: 'pdf' | 'excel') => {
@@ -176,12 +228,13 @@ function PageReservationsInner() {
   const lancerExport = () => {
     const donnees = periodeExport
       ? reservations.filter((r) => {
-          const d = dayjs(r.date);
-          return !d.isBefore(periodeExport[0], 'day') && !d.isAfter(periodeExport[1], 'day');
+          const debut = dayjs(r.dateDebut);
+          const fin = dayjs(r.dateFin);
+          return !fin.isBefore(periodeExport[0], 'day') && !debut.isAfter(periodeExport[1], 'day');
         })
       : reservations;
 
-    const tri = [...donnees].sort((a, b) => a.date.localeCompare(b.date));
+    const tri = [...donnees].sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
     const label = periodeExport
       ? `${periodeExport[0].format('DD-MM-YYYY')}_${periodeExport[1].format('DD-MM-YYYY')}`
       : 'toutes';
@@ -206,7 +259,7 @@ function PageReservationsInner() {
     const doc = new jsPDF({ orientation: 'landscape' });
 
     doc.setFontSize(16);
-    doc.text('Bravia Hôtel — Réservations', 14, 16);
+    doc.text('Hotel Manager — Réservations', 14, 16);
     doc.setFontSize(10);
     const sousTitre = periode
       ? `Période : ${periode[0].format('DD/MM/YYYY')} – ${periode[1].format('DD/MM/YYYY')}`
@@ -216,7 +269,7 @@ function PageReservationsInner() {
 
     autoTable(doc, {
       startY: 35,
-      head: [['Date', 'Créneau', 'Salle', 'Étage', 'Entreprise', 'Situation', 'Statut', 'Notes']],
+      head: [['Date début', 'Date fin', 'Créneau', 'Salle', 'Étage', 'Entreprise', 'Situation', 'Statut', 'Notes']],
       body: lignesExport(donnees).map((l) => Object.values(l)),
       styles: { fontSize: 8, cellPadding: 3 },
       headStyles: { fillColor: [112, 28, 69] },
@@ -233,6 +286,10 @@ function PageReservationsInner() {
     setEstJourneeEntiere(false);
     form.resetFields();
     setErreurForm('');
+    if (estSuperAdmin) {
+      setSallesForm([]);
+      setEntreprisesForm([]);
+    }
     setModalVisible(true);
   };
 
@@ -244,7 +301,7 @@ function PageReservationsInner() {
     form.setFieldsValue({
       salleId: r.salle?.id,
       entrepriseId: r.entreprise?.id,
-      date: dayjs(r.date),
+      plage: [dayjs(r.dateDebut), dayjs(r.dateFin)],
       notes: r.notes,
       statut: r.statut ?? 'EN_ATTENTE',
       heureDebut: r.heureDebut ? dayjs(`2000-01-01 ${r.heureDebut}`) : undefined,
@@ -271,7 +328,8 @@ function PageReservationsInner() {
         : {
             salleId: valeurs.salleId,
             entrepriseId: valeurs.entrepriseId,
-            date: valeurs.date.format('YYYY-MM-DD'),
+            dateDebut: valeurs.plage[0].format('YYYY-MM-DD'),
+            dateFin: valeurs.plage[1].format('YYYY-MM-DD'),
             estJourneeEntiere,
             notes: valeurs.notes,
             statut: valeurs.statut,
@@ -307,12 +365,29 @@ function PageReservationsInner() {
     Array.from({ length: 60 }, (_, i) => i).filter((m) => m !== 0 && m !== 30);
 
   const colonnes = [
+    ...(estSuperAdmin ? [{
+      title: 'Hôtel', key: 'hotel',
+      render: (_: any, r: any) => (
+        <Tag color="geekblue">{r.salle?.etage?.hotel?.nom ?? '—'}</Tag>
+      ),
+    }] : []),
     {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      render: (d: string) => dayjs(d).format('DD/MM/YYYY'),
-      sorter: (a: any, b: any) => a.date.localeCompare(b.date),
+      title: 'Période',
+      key: 'periode',
+      render: (_: any, r: any) => {
+        const multiJour = r.dateDebut !== r.dateFin;
+        return (
+          <Space direction="vertical" size={0}>
+            <Text style={{ fontSize: 13 }}>{formaterPlage(r)}</Text>
+            {multiJour && (
+              <Tag color="geekblue" style={{ fontSize: 10 }}>
+                {dayjs(r.dateFin).diff(dayjs(r.dateDebut), 'day') + 1} jours
+              </Tag>
+            )}
+          </Space>
+        );
+      },
+      sorter: (a: any, b: any) => a.dateDebut.localeCompare(b.dateDebut),
       defaultSortOrder: 'ascend' as const,
     },
     {
@@ -410,7 +485,19 @@ function PageReservationsInner() {
       {/* Filtres */}
       <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
         <Row gutter={[12, 8]} align="middle">
-          <Col xs={24} sm={12} md={6}>
+          {estSuperAdmin && (
+            <Col xs={24} sm={12} md={4}>
+              <Select
+                style={{ width: '100%' }}
+                placeholder="Hôtel"
+                value={hotelFiltreId}
+                onChange={setHotelFiltreId}
+                allowClear
+                options={hotels.map((h) => ({ value: h.id, label: h.nom }))}
+              />
+            </Col>
+          )}
+          <Col xs={24} sm={12} md={estSuperAdmin ? 5 : 6}>
             <Input
               prefix={<SearchOutlined />}
               placeholder="Rechercher salle, entreprise, notes…"
@@ -419,7 +506,7 @@ function PageReservationsInner() {
               allowClear
             />
           </Col>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={12} md={estSuperAdmin ? 5 : 6}>
             <RangePicker
               style={{ width: '100%' }}
               format="DD/MM/YYYY"
@@ -533,8 +620,9 @@ function PageReservationsInner() {
           <Text type="secondary" style={{ fontSize: 12 }}>
             {periodeExport
               ? `${reservations.filter((r) => {
-                  const d = dayjs(r.date);
-                  return !d.isBefore(periodeExport[0], 'day') && !d.isAfter(periodeExport[1], 'day');
+                  const debut = dayjs(r.dateDebut);
+                  const fin = dayjs(r.dateFin);
+                  return !fin.isBefore(periodeExport[0], 'day') && !debut.isAfter(periodeExport[1], 'day');
                 }).length} réservation(s) dans cette période`
               : `${reservations.length} réservation(s) au total`}
           </Text>
@@ -551,7 +639,7 @@ function PageReservationsInner() {
         open={modalVisible}
         onCancel={fermerModal}
         footer={null}
-        width={520}
+        width={560}
       >
         {etatTemporelEdition === 'PASSEE' && (
           <Alert
@@ -561,15 +649,30 @@ function PageReservationsInner() {
             style={{ marginBottom: 16 }}
           />
         )}
-        {erreurForm && <Alert title={erreurForm} type="error" showIcon style={{ marginBottom: 16 }} />}
+        {erreurForm && <Alert message={erreurForm} type="error" showIcon style={{ marginBottom: 16 }} />}
         <Form form={form} layout="vertical" onFinish={soumettre}>
+          {estSuperAdmin && !reservationEnEdition && (
+            <Form.Item name="hotelForm" label="Hôtel" rules={[{ required: true, message: 'Sélectionner un hôtel' }]}>
+              <Select
+                placeholder="Sélectionner un hôtel"
+                options={hotels.map((h) => ({ value: h.id, label: h.nom }))}
+                onChange={onHotelFormChange}
+                loading={chargementForm}
+                showSearch
+                filterOption={(input, opt) =>
+                  (opt?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                }
+              />
+            </Form.Item>
+          )}
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="salleId" label="Salle" rules={[{ required: etatTemporelEdition !== 'PASSEE', message: 'Requis' }]}>
                 <Select
-                  placeholder="Choisir une salle"
-                  disabled={etatTemporelEdition === 'PASSEE'}
-                  options={salles.map((s) => ({
+                  placeholder={estSuperAdmin && !reservationEnEdition && sallesForm.length === 0 ? "Sélectionner un hôtel d'abord" : 'Choisir une salle'}
+                  disabled={etatTemporelEdition === 'PASSEE' || (estSuperAdmin && !reservationEnEdition && sallesForm.length === 0 && !chargementForm)}
+                  loading={chargementForm}
+                  options={(estSuperAdmin && !reservationEnEdition ? sallesForm : salles).map((s) => ({
                     value: s.id,
                     label: `${s.nom} (${formaterEtage(s.etage)}) — ${s.capacite} pers.`,
                   }))}
@@ -579,16 +682,30 @@ function PageReservationsInner() {
             <Col span={12}>
               <Form.Item name="entrepriseId" label="Entreprise" rules={[{ required: etatTemporelEdition !== 'PASSEE', message: 'Requis' }]}>
                 <Select
-                  placeholder="Choisir une entreprise"
-                  disabled={etatTemporelEdition === 'PASSEE'}
-                  options={entreprises.map((e) => ({ value: e.id, label: e.nom }))}
+                  placeholder={estSuperAdmin && !reservationEnEdition && entreprisesForm.length === 0 ? "Sélectionner un hôtel d'abord" : 'Choisir une entreprise'}
+                  disabled={etatTemporelEdition === 'PASSEE' || (estSuperAdmin && !reservationEnEdition && entreprisesForm.length === 0 && !chargementForm)}
+                  loading={chargementForm}
+                  options={(estSuperAdmin && !reservationEnEdition ? entreprisesForm : entreprises).map((e) => ({ value: e.id, label: e.nom }))}
                 />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="date" label="Date" rules={[{ required: etatTemporelEdition !== 'PASSEE', message: 'Requis' }]}>
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" disabled={etatTemporelEdition === 'PASSEE'} />
+
+          <Form.Item
+            name="plage"
+            label="Période de réservation"
+            rules={[{ required: etatTemporelEdition !== 'PASSEE', message: 'Requis' }]}
+            help="Même date pour une réservation sur une seule journée"
+          >
+            <RangePicker
+              style={{ width: '100%' }}
+              format="DD/MM/YYYY"
+              disabled={etatTemporelEdition === 'PASSEE'}
+              placeholder={['Date de début', 'Date de fin']}
+              allowClear={false}
+            />
           </Form.Item>
+
           <Form.Item label="Journée entière">
             <Switch checked={estJourneeEntiere} onChange={setEstJourneeEntiere} disabled={etatTemporelEdition === 'PASSEE'} />
           </Form.Item>

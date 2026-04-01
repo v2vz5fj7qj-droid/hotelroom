@@ -26,7 +26,8 @@ type VueType = 'jour' | 'semaine' | 'mois';
 
 interface Reservation {
   id: number;
-  date: string;
+  dateDebut: string;
+  dateFin: string;
   heureDebut: string | null;
   heureFin: string | null;
   estJourneeEntiere: boolean;
@@ -78,7 +79,7 @@ export default function PagePublique() {
         debut = dateBase.startOf('month').format('YYYY-MM-DD');
         fin = dateBase.endOf('month').format('YYYY-MM-DD');
       }
-      const { data } = await obtenirReservations(debut, fin);
+      const { data } = await obtenirReservations(undefined, debut, fin);
       setReservations(data);
     } catch {
       // silencieux sur la page publique
@@ -106,13 +107,15 @@ export default function PagePublique() {
     for (let i = 0; i < nbJours; i++) joursVisibles.push(debut.add(i, 'day'));
   }
 
-  const reservParDate = (date: Dayjs) =>
-    reservations.filter(
-      (r) => r.date === date.format('YYYY-MM-DD')
+  const reservParDate = (date: Dayjs) => {
+    const d = date.format('YYYY-MM-DD');
+    return reservations.filter(
+      (r) => r.dateDebut <= d && r.dateFin >= d
         && r.statut !== 'ANNULEE'
         && r.statut !== 'REPORTEE'
         && r.entreprise.actif !== false,
     );
+  };
 
   const naviguer = (direction: -1 | 1) => {
     const unite = vue === 'jour' ? 'day' : vue === 'semaine' ? 'week' : 'month';

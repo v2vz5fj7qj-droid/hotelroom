@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsEmail } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsEmail, IsInt } from 'class-validator';
 
 export class CreerEntrepriseDto {
   @IsNotEmpty({ message: "Le nom de l'entreprise est requis" })
@@ -28,4 +28,8 @@ export class CreerEntrepriseDto {
 
   @IsOptional()
   logoUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  hotelId?: number;
 }

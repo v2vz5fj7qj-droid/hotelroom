@@ -11,8 +11,12 @@ export class ModifierReservationDto {
   entrepriseId?: number;
 
   @IsOptional()
-  @IsDateString({}, { message: 'La date doit être au format YYYY-MM-DD' })
-  date?: string;
+  @IsDateString({}, { message: 'La date de début doit être au format YYYY-MM-DD' })
+  dateDebut?: string;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'La date de fin doit être au format YYYY-MM-DD' })
+  dateFin?: string;
 
   @IsOptional()
   @IsBoolean()
